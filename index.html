@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMMI Presence 360 - Sistem Kehadiran</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0,1" />
+    
+    <!-- Face API -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    
+    <!-- API Config -->
+    <script src="api-config.js"></script>
+    
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #f0f5fa 0%, #e6edf4 100%);
+            min-height: 100vh;
+        }
+        
+        /* Login Page */
+        .login-container {
+            min-height: 100vh;
+            background: linear-gradient(165deg, #0b1e33 0%, #132b41 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 36px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 50px 70px -20px rgba(0,0,0,0.5);
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            background: #f8fafc;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #1e3a8a;
+            box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.1);
+        }
+        
+        .btn-primary {
+            background: #1e3a8a;
+            color: white;
+            padding: 16px;
+            border-radius: 14px;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(165deg, #0b1e33 0%, #132b41 100%);
+            padding: 32px 24px 64px;
+            border-bottom-left-radius: 40px;
+            border-bottom-right-radius: 40px;
+        }
+        
+        .glass-card {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        
+        .face-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px;
+            height: 200px;
+            border: 2px solid #fbbf24;
+            border-radius: 80px;
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+        }
+
+        .face-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .face-box {
+            position: absolute;
+            border: 3px solid #fbbf24;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translate(-50%, -150%);
+            background: white;
+            border-radius: 16px;
+            padding: 16px 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            z-index: 9999;
+            border-left: 4px solid #059669;
+            transition: transform 0.3s;
+        }
+        
+        .notification.show { transform: translate(-50%, 0); }
+        .notification.error { border-left-color: #dc2626; }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .challenge-box {
+            background: #1e3a8a;
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 16px;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #1e3a8a;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Status Badge Styles */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        .status-badge.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-badge.warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-badge.info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-badge.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <p class="font-bold text-sm" id="notifTitle">Makluman Sistem</p>
+        <p class="text-xs text-gray-600 mt-1" id="notifMessage"></p>
+    </div>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto">
+                    <span class="material-symbols-rounded text-4xl text-blue-800">fingerprint</span>
+                </div>
+                <h1 class="text-3xl font-black text-gray-800 mt-4">IMMI Presence</h1>
+                <p class="text-gray-400 text-sm">Sistem Kehadiran Pintar 360</p>
+            </div>
+            
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Email</label>
+                <input type="email" id="loginEmail" class="input-field" placeholder="nama@imigresen.gov.my">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Kata Laluan</label>
+                <input type="password" id="loginPassword" class="input-field" placeholder="••••••••">
+            </div>
+            
+            <button onclick="handleLogin()" id="loginBtn" class="btn-primary mt-4">
+                Log Masuk
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden min-h-screen pb-8">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="max-w-md mx-auto flex justify-between items-start">
+                <div>
+                    <span class="bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-xs font-bold" id="statusBadge">AKTIF</span>
+                    <h2 class="text-2xl font-extrabold text-white mt-2" id="userName">-</h2>
+                    <p class="text-sm text-blue-200 mt-1" id="userDetail">-</p>
+                </div>
+                <button onclick="handleLogout()" class="p-3 bg-white/10 hover:bg-white/20 rounded-2xl">
+                    <span class="material-symbols-rounded text-white">logout</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-md mx-auto px-5 -mt-12 space-y-5">
+            <!-- Status Card -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-5">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-rounded text-blue-600">event_available</span>
+                        <span class="font-bold">Kehadiran Hari Ini</span>
+                    </div>
+                    <div id="attendanceStatus" class="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold status-badge">
+                        BELUM MASUK
+                    </div>
+                </div>
+
+                <!-- Clock -->
+                <div class="text-center mb-6">
+                    <div class="text-5xl font-black text-blue-800" id="realTimeClock">00:00:00</div>
+                    <p class="text-xs font-bold text-gray-400 mt-2" id="displayDate">-</p>
+                </div>
+
+                <!-- Location Card -->
+                <div class="bg-gray-50 p-4 rounded-2xl" id="locationCard">
+                    <div class="flex gap-3">
+                        <span class="material-symbols-rounded text-blue-600">location_on</span>
+                        <div class="flex-1">
+                            <p class="text-sm font-bold" id="locationStatus">Mengesan lokasi...</p>
+                            <p class="text-xs text-gray-400" id="distanceStatus">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Scanner with Liveness -->
+                <div id="scanContainer" class="hidden mt-4">
+                    <div id="challengeDisplay" class="challenge-box">
+                        Sedia untuk pengesahan...
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div class="video-wrapper">
+                        <video id="scanVideo" autoplay muted playsinline></video>
+                        <div class="face-guide"></div>
+                        <div id="faceOverlay" class="face-overlay"></div>
+                    </div>
+                    <p class="text-center mt-3 text-sm text-blue-600" id="scanStatus">Menyediakan kamera...</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-4 mt-6">
+                    <button onclick="handleClockIn()" id="clockInBtn" class="bg-green-600 text-white py-4 rounded-2xl font-bold hover:bg-green-700 transition-colors">
+                        MASUK
+                    </button>
+                    <button onclick="handleClockOut()" id="clockOutBtn" class="bg-gray-200 text-gray-600 py-4 rounded-2xl font-bold disabled:opacity-50" disabled>
+                        KELUAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div>
+                <h3 class="font-bold mb-3">REKOD KEHADIRAN</h3>
+                <div id="attendanceHistory" class="space-y-2 max-h-96 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GLOBAL VARIABLES
+        // ============================================
+        let currentUser = null;
+        let userLocation = null;
+        let videoStream = null;
+        let faceMatcher = null;
+        let locationWatchId = null;
+        let modelsLoaded = false;
+        let isVerifying = false;
+        let faceOverlay = null;
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function showNotification(title, message, isError = false) {
+            const notif = document.getElementById('notification');
+            document.getElementById('notifTitle').innerText = title;
+            document.getElementById('notifMessage').innerText = message;
+            notif.className = `notification show ${isError ? 'error' : ''}`;
+            setTimeout(() => notif.classList.remove('show'), 3000);
+        }
+
+        function updateProgress(percent) {
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) {
+                progressFill.style.width = percent + '%';
+            }
+        }
+
+        // ============================================
+        // VIDEO DIMENSIONS HELPER
+        // ============================================
+        function getVideoDimensions(videoEl) {
+            const videoWidth = videoEl.videoWidth;
+            const videoHeight = videoEl.videoHeight;
+            const containerWidth = videoEl.clientWidth;
+            const containerHeight = videoEl.clientHeight;
+            
+            const videoAspectRatio = videoWidth / videoHeight;
+            const containerAspectRatio = containerWidth / containerHeight;
+            
+            let displayWidth, displayHeight;
+            
+            if (containerAspectRatio > videoAspectRatio) {
+                displayHeight = containerHeight;
+                displayWidth = videoAspectRatio * displayHeight;
+            } else {
+                displayWidth = containerWidth;
+                displayHeight = displayWidth / videoAspectRatio;
+            }
+            
+            const offsetX = (containerWidth - displayWidth) / 2;
+            const offsetY = (containerHeight - displayHeight) / 2;
+            
+            return {
+                videoWidth,
+                videoHeight,
+                displayWidth,
+                displayHeight,
+                offsetX,
+                offsetY,
+                scaleX: displayWidth / videoWidth,
+                scaleY: displayHeight / videoHeight
+            };
+        }
+
+        function adjustFaceBox(box, dims) {
+            return {
+                x: box.x * dims.scaleX + dims.offsetX,
+                y: box.y * dims.scaleY + dims.offsetY,
+                width: box.width * dims.scaleX,
+                height: box.height * dims.scaleY
+            };
+        }
+
+        // ============================================
+        // FACE API MODELS
+        // ============================================
+        async function loadFaceModels() {
+            if (modelsLoaded) return true;
+            
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/jimswk/IMMI-Presence-360@main/models';
+            
+            try {
+                console.log('🔄 Loading face models...');
+                
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                console.log('✅ TinyFaceDetector loaded');
+                
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                console.log('✅ FaceLandmark68Net loaded');
+                
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                console.log('✅ FaceRecognitionNet loaded');
+                
+                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+                console.log('✅ FaceExpressionNet loaded');
+                
+                modelsLoaded = true;
+                console.log('✅ All face models loaded successfully');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Failed to load models:', error);
+                
+                // Try backup CDN
+                try {
+                    console.log('🔄 Trying backup CDN...');
+                    const BACKUP_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+                    
+                    await faceapi.nets.tinyFaceDetector.loadFromUri(BACKUP_URL);
+                    await faceapi.nets.faceLandmark68Net.loadFromUri(BACKUP_URL);
+                    await faceapi.nets.faceRecognitionNet.loadFromUri(BACKUP_URL);
+                    await faceapi.nets.faceExpressionNet.loadFromUri(BACKUP_URL);
+                    
+                    modelsLoaded = true;
+                    console.log('✅ Face models loaded from backup');
+                    return true;
+                    
+                } catch (backupError) {
+                    console.error('❌ Backup also failed:', backupError);
+                    showNotification('Amaran', 'Pengesahan wajah mungkin tidak berfungsi', true);
+                    return false;
+                }
+            }
+        }
+
+        // ============================================
+        // LOCATION FUNCTIONS
+        // ============================================
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // metres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c;
+        }
+
+        function updateLocationDisplay() {
+            if (!currentUser || !currentUser.lat || !currentUser.lng || !userLocation) {
+                document.getElementById('locationStatus').innerHTML = '<span class="text-gray-500">Mengesan lokasi...</span>';
+                document.getElementById('distanceStatus').innerText = '-';
+                return;
+            }
+            
+            const distance = calculateDistance(
+                userLocation.lat,
+                userLocation.lng,
+                parseFloat(currentUser.lat),
+                parseFloat(currentUser.lng)
+            );
+            
+            const radius = parseInt(currentUser.radius) || 500;
+            const within = distance <= radius;
+            
+            // Update location status with appropriate color
+            const locationEl = document.getElementById('locationStatus');
+            const distanceEl = document.getElementById('distanceStatus');
+            
+            if (within) {
+                locationEl.innerHTML = '<span class="text-green-600 font-bold">✓ DALAM KAWASAN BERTUGAS</span>';
+            } else {
+                locationEl.innerHTML = '<span class="text-red-500 font-bold">✗ LUAR KAWASAN BERTUGAS</span>';
+            }
+            
+            distanceEl.innerText = `${Math.round(distance)}m / ${radius}m`;
+            
+            // Log untuk debugging
+            console.log(`📍 Distance: ${Math.round(distance)}m, Radius: ${radius}m, Within: ${within}`);
+        }
+
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                document.getElementById('locationStatus').innerHTML = '<span class="text-red-500">GPS tidak disokong</span>';
+                return;
+            }
+            
+            // Get initial position immediately
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    updateLocationDisplay();
+                },
+                (error) => {
+                    console.error('GPS error:', error);
+                    document.getElementById('locationStatus').innerHTML = '<span class="text-red-500">Gagal mengesan GPS</span>';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+            
+            // Then watch for changes
+            locationWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    updateLocationDisplay();
+                },
+                (error) => {
+                    console.error('GPS watch error:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 30000,
+                    timeout: 27000
+                }
+            );
+        }
+
+        // ============================================
+        // ATTENDANCE FUNCTIONS
+        // ============================================
+        async function checkTodayAttendance() {
+            if (!currentUser) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            console.log('🔍 Checking attendance for date:', today);
+            
+            try {
+                const result = await callAPI('getAttendance', { 
+                    uid: currentUser.uid, 
+                    startDate: today, 
+                    endDate: today 
+                });
+                
+                console.log('📊 Attendance result:', result);
+                
+                const statusEl = document.getElementById('attendanceStatus');
+                const clockInBtn = document.getElementById('clockInBtn');
+                const clockOutBtn = document.getElementById('clockOutBtn');
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    const record = result.data[0];
+                    console.log('📅 Today record:', record);
+                    console.log('⏰ clockIn:', record.clockIn);
+                    console.log('⏰ clockOut:', record.clockOut);
+                    
+                    // Check if clock in exists and clock out is empty/null
+                    if (record.clockIn && (!record.clockOut || record.clockOut === '' || record.clockOut === 'null')) {
+                        // Clocked in but not clocked out
+                        statusEl.innerText = 'DALAM BERTUGAS';
+                        statusEl.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold';
+                        
+                        clockInBtn.disabled = true;
+                        clockInBtn.className = 'bg-gray-400 text-white py-4 rounded-2xl font-bold cursor-not-allowed opacity-50';
+                        
+                        clockOutBtn.disabled = false;
+                        clockOutBtn.className = 'bg-green-600 text-white py-4 rounded-2xl font-bold hover:bg-green-700 transition-colors';
+                        
+                        console.log('✅ Status updated: DALAM BERTUGAS');
+                        
+                    } else if (record.clockIn && record.clockOut && record.clockOut !== '' && record.clockOut !== 'null') {
+                        // Both clock in and clock out exist
+                        statusEl.innerText = 'SELESAI';
+                        statusEl.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold';
+                        
+                        clockInBtn.disabled = true;
+                        clockInBtn.className = 'bg-gray-400 text-white py-4 rounded-2xl font-bold cursor-not-allowed opacity-50';
+                        
+                        clockOutBtn.disabled = true;
+                        clockOutBtn.className = 'bg-gray-400 text-white py-4 rounded-2xl font-bold cursor-not-allowed opacity-50';
+                        
+                        console.log('✅ Status updated: SELESAI');
+                    } else {
+                        // Should not happen, but handle just in case
+                        statusEl.innerText = 'BELUM MASUK';
+                        statusEl.className = 'px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold';
+                        
+                        clockInBtn.disabled = false;
+                        clockInBtn.className = 'bg-green-600 text-white py-4 rounded-2xl font-bold hover:bg-green-700 transition-colors';
+                        
+                        clockOutBtn.disabled = true;
+                        clockOutBtn.className = 'bg-gray-200 text-gray-600 py-4 rounded-2xl font-bold opacity-50 cursor-not-allowed';
+                    }
+                } else {
+                    // No record for today
+                    console.log('📅 No record for today');
+                    statusEl.innerText = 'BELUM MASUK';
+                    statusEl.className = 'px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold';
+                    
+                    clockInBtn.disabled = false;
+                    clockInBtn.className = 'bg-green-600 text-white py-4 rounded-2xl font-bold hover:bg-green-700 transition-colors';
+                    
+                    clockOutBtn.disabled = true;
+                    clockOutBtn.className = 'bg-gray-200 text-gray-600 py-4 rounded-2xl font-bold opacity-50 cursor-not-allowed';
+                }
+            } catch (error) {
+                console.error('❌ Error checking attendance:', error);
+            }
+        }
+
+        // ============================================
+        // FACE VERIFICATION FUNCTIONS
+        // ============================================
+        
+        function isSmiling(landmarks) {
+            if (!landmarks) return false;
+            
+            const mouth = landmarks.getMouth();
+            if (!mouth || mouth.length < 20) return false;
+            
+            const leftMouthCorner = mouth[0];
+            const rightMouthCorner = mouth[6];
+            const upperLip = mouth[3];
+            const lowerLip = mouth[9];
+            
+            const mouthWidth = Math.hypot(
+                rightMouthCorner.x - leftMouthCorner.x,
+                rightMouthCorner.y - leftMouthCorner.y
+            );
+            
+            const mouthHeight = Math.hypot(
+                lowerLip.x - upperLip.x,
+                lowerLip.y - upperLip.y
+            );
+            
+            const smileRatio = mouthWidth / (mouthHeight + 0.1);
+            
+            console.log('😊 Smile ratio:', smileRatio.toFixed(2));
+            
+            return smileRatio > 2.0;
+        }
+
+        async function getFaceDescriptor(video) {
+            try {
+                const detection = await faceapi
+                    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                
+                return detection;
+            } catch (error) {
+                console.error('❌ Error getting face descriptor:', error);
+                return null;
+            }
+        }
+
+        async function verifyFace() {
+            if (isVerifying) return false;
+            isVerifying = true;
+            
+            if (!faceMatcher) {
+                showNotification('Wajah Tidak Didaftar', 'Sila hubungi admin untuk pendaftaran wajah', true);
+                isVerifying = false;
+                return false;
+            }
+            
+            const scanContainer = document.getElementById('scanContainer');
+            const scanVideo = document.getElementById('scanVideo');
+            const scanStatus = document.getElementById('scanStatus');
+            const challengeDisplay = document.getElementById('challengeDisplay');
+            const clockInBtn = document.getElementById('clockInBtn');
+            const clockOutBtn = document.getElementById('clockOutBtn');
+            
+            scanContainer.classList.remove('hidden');
+            clockInBtn.disabled = true;
+            clockOutBtn.disabled = true;
+            
+            faceOverlay = document.getElementById('faceOverlay');
+            
+            try {
+                await loadFaceModels();
+                
+                scanStatus.innerText = 'Mengakses kamera...';
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                scanVideo.srcObject = stream;
+                videoStream = stream;
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Start face detection overlay
+                let faceDetectionInterval = setInterval(async () => {
+                    if (!scanVideo || !scanVideo.srcObject) return;
+                    
+                    try {
+                        const dims = getVideoDimensions(scanVideo);
+                        const detections = await faceapi.detectAllFaces(scanVideo, 
+                            new faceapi.TinyFaceDetectorOptions());
+                        
+                        if (faceOverlay) faceOverlay.innerHTML = '';
+                        
+                        if (detections.length > 0) {
+                            const box = detections[0].detection.box;
+                            const adjustedBox = adjustFaceBox(box, dims);
+                            
+                            const faceBox = document.createElement('div');
+                            faceBox.className = 'face-box';
+                            faceBox.style.left = `${adjustedBox.x}px`;
+                            faceBox.style.top = `${adjustedBox.y}px`;
+                            faceBox.style.width = `${adjustedBox.width}px`;
+                            faceBox.style.height = `${adjustedBox.height}px`;
+                            faceOverlay.appendChild(faceBox);
+                        }
+                    } catch (e) {
+                        // Ignore detection errors
+                    }
+                }, 100);
+                
+                // Smile detection
+                updateProgress(30);
+                challengeDisplay.innerText = '😊 SILA SENYUM';
+                scanStatus.innerText = 'Sila senyum...';
+                
+                let smileDetected = false;
+                let smileStartTime = Date.now();
+                
+                while (Date.now() - smileStartTime < 5000) {
+                    updateProgress(30 + ((Date.now() - smileStartTime) / 5000) * 40);
+                    
+                    const detection = await faceapi.detectSingleFace(scanVideo, 
+                        new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceExpressions();
+                    
+                    if (detection) {
+                        if (detection.expressions && detection.expressions.happy > 0.5) {
+                            smileDetected = true;
+                            console.log('😊 Smile detected via expression!');
+                            break;
+                        }
+                        
+                        if (detection.landmarks && isSmiling(detection.landmarks)) {
+                            smileDetected = true;
+                            console.log('😊 Smile detected via geometry!');
+                            break;
+                        }
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                clearInterval(faceDetectionInterval);
+                
+                if (!smileDetected) {
+                    throw new Error('Senyum tidak dikesan. Sila senyum dengan jelas.');
+                }
+                
+                // Face Matching
+                updateProgress(80);
+                challengeDisplay.innerText = '👤 MENGESAHKAN WAJAH';
+                scanStatus.innerText = 'Memadankan wajah dengan rekod...';
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const detection = await getFaceDescriptor(scanVideo);
+                
+                if (!detection) {
+                    throw new Error('Wajah tidak dapat dikesan. Sila pastikan wajah dalam bingkai.');
+                }
+                
+                if (!detection.descriptor) {
+                    throw new Error('Deskriptor wajah tidak dapat dijana');
+                }
+                
+                const match = faceMatcher.findBestMatch(detection.descriptor);
+                console.log(`🎯 Face match distance: ${match.distance.toFixed(3)}`);
+                
+                if (match.label !== currentUser.uid || match.distance >= 0.65) {
+                    throw new Error('Wajah tidak sepadan dengan rekod');
+                }
+                
+                // All tests passed
+                updateProgress(100);
+                challengeDisplay.innerText = '✅ PENGESAHAN BERJAYA';
+                scanStatus.innerText = 'Wajah disahkan. Sila tunggu...';
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                videoStream.getTracks().forEach(t => t.stop());
+                videoStream = null;
+                scanContainer.classList.add('hidden');
+                
+                showNotification('Berjaya', 'Pengesahan wajah berjaya');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Verification error:', error);
+                
+                if (videoStream) {
+                    videoStream.getTracks().forEach(t => t.stop());
+                    videoStream = null;
+                }
+                
+                scanContainer.classList.add('hidden');
+                showNotification('Pengesahan Gagal', error.message || 'Gagal mengesahkan wajah', true);
+                return false;
+                
+            } finally {
+                isVerifying = false;
+                clockInBtn.disabled = false;
+                clockOutBtn.disabled = false;
+                updateProgress(0);
+                if (faceOverlay) faceOverlay.innerHTML = '';
+            }
+        }
+
+        // ============================================
+        // LOGIN
+        // ============================================
+        window.handleLogin = async function() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                showNotification('Ralat', 'Sila isi email dan kata laluan', true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading mx-auto"></div>';
+
+            try {
+                const result = await callAPI('userLogin', { email, password });
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    
+                    if (currentUser.faceDescriptor && currentUser.faceDescriptor !== '') {
+                        try {
+                            const descriptor = JSON.parse(currentUser.faceDescriptor);
+                            const labeledDescriptor = new faceapi.LabeledFaceDescriptors(
+                                currentUser.uid, 
+                                [new Float32Array(descriptor)]
+                            );
+                            faceMatcher = new faceapi.FaceMatcher([labeledDescriptor]);
+                            console.log('✅ Face matcher created');
+                        } catch (e) {
+                            console.error('❌ Failed to create face matcher:', e);
+                        }
+                    }
+                    
+                    document.getElementById('userName').innerText = currentUser.name;
+                    document.getElementById('userDetail').innerText = `${currentUser.branch} • ${currentUser.unit}`;
+                    
+                    document.getElementById('loginPage').classList.add('hidden');
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    
+                    await loadFaceModels();
+                    await checkTodayAttendance();
+                    startLocationTracking();
+                    loadAttendanceHistory();
+                    startClock();
+                    
+                    showNotification('Selamat Datang', `Log masuk berjaya`);
+                } else {
+                    showNotification('Log Masuk Gagal', result.error || 'Email atau kata laluan salah', true);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showNotification('Ralat', 'Gagal berkomunikasi dengan pelayan', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Log Masuk';
+            }
+        };
+
+        window.handleLogout = function() {
+            if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
+            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        };
+
+        // ============================================
+        // CLOCK IN / OUT
+        // ============================================
+        window.handleClockIn = async function() {
+            if (!userLocation) {
+                showNotification('Ralat Lokasi', 'Lokasi tidak dapat dikesan. Sila pastikan GPS dihidupkan.', true);
+                return;
+            }
+            
+            const distance = calculateDistance(
+                userLocation.lat, userLocation.lng,
+                parseFloat(currentUser.lat), parseFloat(currentUser.lng)
+            );
+            
+            if (distance > (parseInt(currentUser.radius) || 500)) {
+                showNotification('Geofencing', 'Anda berada di luar kawasan yang dibenarkan untuk clock in', true);
+                return;
+            }
+            
+            const verified = await verifyFace();
+            if (!verified) {
+                return;
+            }
+            
+            const btn = document.getElementById('clockInBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading mx-auto"></div>';
+            
+            try {
+                console.log('📤 Sending clock in request...');
+                const result = await callAPI('clockIn', { 
+                    uid: currentUser.uid, 
+                    location: JSON.stringify(userLocation)
+                });
+                
+                console.log('📥 Clock in result:', result);
+                
+                if (result.success) {
+                    showNotification('Berjaya', 'Clock In direkodkan');
+                    
+                    // Update attendance status immediately
+                    await checkTodayAttendance();
+                    
+                    // Refresh history
+                    await loadAttendanceHistory();
+                    
+                    // Update location display
+                    updateLocationDisplay();
+                    
+                } else {
+                    showNotification('Ralat', result.error || 'Gagal clock in', true);
+                }
+            } catch (error) {
+                console.error('Clock in error:', error);
+                showNotification('Ralat', 'Gagal berkomunikasi dengan pelayan', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'MASUK';
+            }
+        };
+
+        window.handleClockOut = async function() {
+            if (!userLocation) {
+                showNotification('Ralat Lokasi', 'Lokasi tidak dapat dikesan. Sila pastikan GPS dihidupkan.', true);
+                return;
+            }
+            
+            const verified = await verifyFace();
+            if (!verified) {
+                return;
+            }
+            
+            const btn = document.getElementById('clockOutBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading mx-auto"></div>';
+            
+            try {
+                console.log('📤 Sending clock out request...');
+                const result = await callAPI('clockOut', { 
+                    uid: currentUser.uid, 
+                    location: JSON.stringify(userLocation)
+                });
+                
+                console.log('📥 Clock out result:', result);
+                
+                if (result.success) {
+                    showNotification('Berjaya', 'Clock Out direkodkan');
+                    
+                    // Update attendance status immediately
+                    await checkTodayAttendance();
+                    
+                    // Refresh history
+                    await loadAttendanceHistory();
+                    
+                    // Update location display
+                    updateLocationDisplay();
+                    
+                } else {
+                    showNotification('Ralat', result.error || 'Gagal clock out', true);
+                }
+            } catch (error) {
+                console.error('Clock out error:', error);
+                showNotification('Ralat', 'Gagal berkomunikasi dengan pelayan', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'KELUAR';
+            }
+        };
+
+        // ============================================
+        // ATTENDANCE HISTORY
+        // ============================================
+        async function loadAttendanceHistory() {
+            if (!currentUser) return;
+            
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const result = await callAPI('getAttendance', { 
+                uid: currentUser.uid,
+                startDate: thirtyDaysAgo.toISOString().split('T')[0],
+                endDate: today.toISOString().split('T')[0]
+            });
+            
+            const historyEl = document.getElementById('attendanceHistory');
+            
+            if (!result.success || !result.data || result.data.length === 0) {
+                historyEl.innerHTML = '<div class="text-center py-8 text-gray-400">Tiada rekod kehadiran</div>';
+                return;
+            }
+            
+            let html = '';
+            result.data.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            result.data.forEach(record => {
+                const date = new Date(record.date);
+                const clockIn = record.clockIn ? new Date(record.clockIn) : null;
+                const clockOut = record.clockOut ? new Date(record.clockOut) : null;
+                
+                const clockInTime = clockIn ? clockIn.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                const clockOutTime = clockOut ? clockOut.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                
+                const totalHours = record.totalHours ? parseFloat(record.totalHours).toFixed(1) : '-';
+                
+                const isToday = record.date === new Date().toISOString().split('T')[0];
+                const todayClass = isToday ? 'border-l-4 border-blue-500' : '';
+                
+                html += `
+                    <div class="bg-white p-4 rounded-2xl border hover:shadow-md transition-shadow ${todayClass}">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold">
+                                ${record.weekday || '-'}
+                            </span>
+                            <span class="text-xs text-gray-400">${date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="flex gap-4">
+                                <div class="flex items-center gap-1">
+                                    <span class="material-symbols-rounded text-sm text-green-600">login</span>
+                                    <span class="text-sm font-bold">${clockInTime}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="material-symbols-rounded text-sm text-red-500">logout</span>
+                                    <span class="text-sm font-bold">${clockOutTime}</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold ${totalHours >= 8 ? 'text-green-600' : 'text-orange-500'}">
+                                ${totalHours !== '-' ? totalHours + ' jam' : '-'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyEl.innerHTML = html;
+        }
+
+        // ============================================
+        // CLOCK
+        // ============================================
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('realTimeClock').innerText = now.toLocaleTimeString('ms-MY', { hour12: false });
+                document.getElementById('displayDate').innerText = now.toLocaleDateString('ms-MY', { 
+                    weekday: 'long', 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+            }, 1000);
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFaceModels();
+            
+            if (!document.getElementById('faceOverlay')) {
+                const overlay = document.createElement('div');
+                overlay.id = 'faceOverlay';
+                overlay.className = 'face-overlay';
+                const videoContainer = document.querySelector('.video-wrapper');
+                if (videoContainer) {
+                    videoContainer.appendChild(overlay);
+                }
+            }
+        });
+
+        document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleLogin();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (videoStream) {
+                videoStream.getTracks().forEach(t => t.stop());
+            }
+            if (locationWatchId) {
+                navigator.geolocation.clearWatch(locationWatchId);
+            }
+        });
+    </script>
+</body>
+</html>
